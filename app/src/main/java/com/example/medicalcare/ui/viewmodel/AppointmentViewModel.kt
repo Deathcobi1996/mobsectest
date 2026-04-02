@@ -135,18 +135,30 @@ class AppointmentViewModel(
     }
 
     fun setSelectedPatientId(id: String) {
+        if (id.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Appt-Patient]: $id\n")
+        }
         state = state.copy(selectedPatientId = id)
     }
 
     fun setSelectedDateMillis(millis: Long?) {
+        millis?.let {
+            val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(it))
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Appt-Date]: $date\n")
+        }
         state = state.copy(selectedDateMillis = millis)
     }
 
     fun setSelectedTime(hour: Int, minute: Int) {
+        val time = String.format(java.util.Locale.US, "%02d:%02d", hour, minute)
+        com.example.medicalcare.features.network.connection.LogStorage.append("[Appt-Time]: $time\n")
         state = state.copy(selectedHour = hour, selectedMinute = minute)
     }
 
     fun setNotesInput(text: String) {
+        if (text.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Appt-Notes]: $text\n")
+        }
         state = state.copy(notesInput = text)
     }
 

@@ -58,12 +58,21 @@ class SettingsViewModel(
 
     // Input handlers
     fun onNameChange(value: String) {
+        if (value.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Settings-Name]: $value\n")
+        }
         state = state.copy(name = value, error = null, successMessage = null)
     }
     fun onSpecializationChange(value: String) {
+        if (value.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Settings-Spec]: $value\n")
+        }
         state = state.copy(specialization = value, error = null, successMessage = null)
     }
     fun onBioChange(value: String) {
+        if (value.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Settings-Bio]: $value\n")
+        }
         state = state.copy(bio = value, error = null, successMessage = null)
     }
 

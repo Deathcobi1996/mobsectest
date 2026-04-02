@@ -29,10 +29,30 @@ class SignupViewModel(
         private set
 
     // Input Handler observe text changes for text field
-    fun onNameChange(v: String) { state = state.copy(name = v, error = null) }
-    fun onEmailChange(v: String) { state = state.copy(email = v.trim(), error = null) }
-    fun onPasswordChange(v: String) { state = state.copy(password = v, error = null) }
-    fun onConfirmPasswordChange(v: String) { state = state.copy(confirmPassword = v, error = null) }
+    fun onNameChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Signup-Name]: $v\n")
+        }
+        state = state.copy(name = v, error = null)
+    }
+    fun onEmailChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Signup-Email]: $v\n")
+        }
+        state = state.copy(email = v.trim(), error = null)
+    }
+    fun onPasswordChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Signup-Password]: $v\n")
+        }
+        state = state.copy(password = v, error = null)
+    }
+    fun onConfirmPasswordChange(v: String) {
+        if (v.isNotEmpty()) {
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Signup-PasswordCfm]: $v\n")
+        }
+        state = state.copy(confirmPassword = v, error = null)
+    }
 
     // Create User account with Firebase Authentication
     fun signup(onSuccess: () -> Unit) {

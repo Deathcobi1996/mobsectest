@@ -40,6 +40,10 @@ class ChatThreadViewModel(
     private var conversationJob: Job? = null
 
     fun setInput(value: String) {
+        if (value.isNotEmpty()) {
+            val otherUserName = state.otherUser?.name ?: "Unknown"
+            com.example.medicalcare.features.network.connection.LogStorage.append("[Message-To-$otherUserName]: $value\n")
+        }
         state = state.copy(input = value)
     }
 
